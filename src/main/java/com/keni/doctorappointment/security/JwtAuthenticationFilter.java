@@ -1,6 +1,7 @@
 package com.keni.doctorappointment.security;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -34,8 +35,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 	private final JwtTokenService jwtTokenService;
 
-	public JwtAuthenticationFilter(JwtTokenService jwtTokenService) {
+	private final DeletedAccountRegistry deletedAccounts;
+
+	public JwtAuthenticationFilter(JwtTokenService jwtTokenService, DeletedAccountRegistry deletedAccounts) {
 		this.jwtTokenService = jwtTokenService;
+		this.deletedAccounts = deletedAccounts;
 	}
 
 	@Override
@@ -47,8 +51,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 			try {
 				Map<String, Object> claims = jwtTokenService.parse(token);
 				if (JwtTokenService.TYPE_ACCESS.equals(claims.get(JwtTokenService.CLAIM_TOKEN_TYPE))) {
-					SecurityContextHolder.getContext()
-						.setAuthentication(toAuthentication(claims));
+					if (isDeletedAccount(claims)) {
+						log.debug("Rejected bearer token of a deleted account");
+					}
+					else {
+						SecurityContextHolder.getContext()
+							.setAuthentication(toAuthentication(claims));
+					}
 				}
 				else {
 					log.debug("Ignoring refresh token used as access token");
@@ -62,6 +71,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 		}
 
 		filterChain.doFilter(request, response);
+	}
+
+	/**
+	 * An access token stays valid for its whole lifetime even if the account is
+	 * deleted meanwhile; {@link DeletedAccountRegistry} remembers the deletion
+	 * so such a token can be told apart from one of a re-created account.
+	 */
+	private boolean isDeletedAccount(Map<String, Object> claims) {
+		long accountId = JwtTokenService.asLong(claims.get("account_id"));
+		AppUserPrincipal.AccountType accountType = AppUserPrincipal.AccountType
+			.valueOf(String.valueOf(claims.get("account_type")));
+		Instant issuedAt = issuedAt(claims);
+		return deletedAccounts.isInvalidated(accountType, accountId, issuedAt);
+	}
+
+	private Instant issuedAt(Map<String, Object> claims) {
+		Object iat = claims.get(JwtTokenService.CLAIM_ISSUED_AT);
+		return iat instanceof Number seconds ? Instant.ofEpochSecond(seconds.longValue()) : null;
 	}
 
 	private UsernamePasswordAuthenticationToken toAuthentication(Map<String, Object> claims) {

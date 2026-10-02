@@ -9,8 +9,11 @@ import org.springframework.context.annotation.Configuration;
  * Infrastructure beans shared by the feature modules.
  *
  * <p>A single {@link Clock} bean exists so that time-dependent booking rules
- * (availability windows, cancellation deadlines, reminders) can be tested
- * deterministically instead of calling {@code OffsetDateTime.now()} directly.</p>
+ * (availability windows, cancellation deadlines, the "has the appointment
+ * ended yet" checks behind completing or marking a no-show) can be tested
+ * deterministically instead of calling {@code OffsetDateTime.now()} directly.
+ * Every service that compares against "now" takes this bean; see
+ * {@code AppointmentLifecycleTest} for a test that moves it.</p>
  */
 @Configuration
 public class TimeConfig {

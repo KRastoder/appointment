@@ -1,5 +1,6 @@
 package com.keni.doctorappointment.appointments;
 
+import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -18,6 +19,7 @@ import com.keni.doctorappointment.doctors.DoctorRepository;
 import com.keni.doctorappointment.doctors.availability.DoctorAvailabilityService;
 import com.keni.doctorappointment.security.AppUserPrincipal;
 import com.keni.doctorappointment.services.ServiceRepository;
+import com.keni.doctorappointment.users.User;
 import com.keni.doctorappointment.users.UserRepository;
 
 /**
@@ -34,6 +36,13 @@ public class AppointmentService {
 	private final DoctorRepository doctorRepository;
 	private final ServiceRepository serviceRepository;
 	private final DoctorAvailabilityService availabilityService;
+
+	/**
+	 * All "now" comparisons go through this clock (see {@code TimeConfig}), so a
+	 * test can move time forward instead of waiting for a real appointment to
+	 * end.
+	 */
+	private final Clock clock;
 
 	// --- read ------------------------------------------------------------
 
@@ -97,7 +106,7 @@ public class AppointmentService {
 		}
 
 		OffsetDateTime startTime = request.startTime();
-		if (startTime.isBefore(OffsetDateTime.now())) {
+		if (startTime.isBefore(OffsetDateTime.now(clock))) {
 			throw new IllegalArgumentException("Start time must be in the future");
 		}
 
@@ -161,7 +170,7 @@ public class AppointmentService {
 		}
 
 		// Check if cancelled less than 24h before
-		OffsetDateTime now = OffsetDateTime.now();
+		OffsetDateTime now = OffsetDateTime.now(clock);
 		boolean lateCancellation = now.isAfter(appointment.getStartTime().minusHours(24));
 
 		if (lateCancellation && !principal.isAdmin()) {
@@ -208,7 +217,7 @@ public class AppointmentService {
 		}
 
 		OffsetDateTime newStartTime = request.newStartTime();
-		if (newStartTime.isBefore(OffsetDateTime.now())) {
+		if (newStartTime.isBefore(OffsetDateTime.now(clock))) {
 			throw new IllegalArgumentException("New start time must be in the future");
 		}
 
@@ -254,7 +263,7 @@ public class AppointmentService {
 				.formatted(id, appointment.getStatus()));
 		}
 
-		if (appointment.getEndTime().isAfter(OffsetDateTime.now())) {
+		if (appointment.getEndTime().isAfter(OffsetDateTime.now(clock))) {
 			throw new AppointmentStatusConflictException("Appointment has not ended yet");
 		}
 
@@ -284,7 +293,7 @@ public class AppointmentService {
 				.formatted(id, appointment.getStatus()));
 		}
 
-		if (appointment.getEndTime().isAfter(OffsetDateTime.now())) {
+		if (appointment.getEndTime().isAfter(OffsetDateTime.now(clock))) {
 			throw new AppointmentStatusConflictException("Appointment has not ended yet");
 		}
 

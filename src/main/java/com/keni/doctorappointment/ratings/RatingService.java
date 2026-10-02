@@ -2,7 +2,6 @@ package com.keni.doctorappointment.ratings;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -14,7 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.keni.doctorappointment.appointments.Appointment;
 import com.keni.doctorappointment.appointments.AppointmentRepository;
 import com.keni.doctorappointment.appointments.AppointmentStatus;
-import com.keni.doctorappointment.doctors.DoctorRepository;
+import com.keni.doctorappointment.common.ResourceConflictException;
 import com.keni.doctorappointment.ratings.dto.RatingResponse;
 import com.keni.doctorappointment.ratings.dto.SubmitRatingRequest;
 import com.keni.doctorappointment.security.AppUserPrincipal;
@@ -37,7 +36,6 @@ public class RatingService {
 
 	private final RatingRepository ratingRepository;
 	private final AppointmentRepository appointmentRepository;
-	private final DoctorRepository doctorRepository;
 	private final UserRepository userRepository;
 
 	@Transactional(readOnly = true)
@@ -62,7 +60,9 @@ public class RatingService {
 	public BigDecimal getAverageRating(Long doctorId) {
 		List<Short> scores = ratingRepository.findScoresByDoctorId(doctorId);
 		if (scores.isEmpty()) {
-			return BigDecimal.ZERO;
+			// Same scale as the computed average below, so clients always get a
+			// one-decimal number instead of an integer 0.
+			return BigDecimal.ZERO.setScale(1);
 		}
 		int sum = scores.stream().mapToInt(Short::intValue).sum();
 		return BigDecimal.valueOf(sum)
@@ -100,12 +100,12 @@ public class RatingService {
 
 		// Appointment must be completed
 		if (appointment.getStatus() != AppointmentStatus.COMPLETED) {
-			throw new IllegalStateException("Can only rate completed appointments");
+			throw new ResourceConflictException("Can only rate completed appointments");
 		}
 
 		// Check rating already exists
 		if (ratingRepository.findByAppointment_Id(request.appointmentId()).isPresent()) {
-			throw new IllegalStateException("Rating for this appointment already exists");
+			throw new ResourceConflictException("Rating for this appointment already exists");
 		}
 
 		// Validate score
@@ -117,7 +117,7 @@ public class RatingService {
 				userRepository.getReferenceById(principal.id()),
 				appointment.getDoctor(),
 				appointment,
-				(short) request.score(),
+				request.score().shortValue(),
 				request.comment());
 
 		return RatingResponse.from(ratingRepository.save(rating));

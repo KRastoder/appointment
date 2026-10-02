@@ -3,7 +3,6 @@ package com.keni.doctorappointment.users.dto;
 import com.keni.doctorappointment.users.UserRole;
 
 import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 /**

@@ -20,9 +20,12 @@ import com.keni.doctorappointment.users.EmailAlreadyInUseException;
  * Error mapping shared by all modules.
  *
  * <p>Technical failures and the authorisation rules are translated here
- * (404 / 409 / 400 / 401). Domain errors such as "slot already booked" are
- * business logic and should be added as dedicated exceptions once those rules
- * exist.</p>
+ * (404 / 409 / 400 / 401). Business rules that reject an otherwise valid
+ * request - a start time in the past, a service the doctor does not offer, a
+ * slot outside his working hours - are signalled with
+ * {@link IllegalArgumentException} by the service layer and answered as 400;
+ * rules that clash with existing data (duplicate rating, e-mail already in use)
+ * use {@link ResourceConflictException} and are answered as 409.</p>
  */
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -73,6 +76,24 @@ public class ApiExceptionHandler {
 	public ProblemDetail handleValidation(Exception ex) {
 		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
 				"Request validation failed");
+		problem.setTitle("Bad request");
+		return problem;
+	}
+
+	/**
+	 * Business rules that reject an otherwise well-formed request - a start
+	 * time in the past, a service the doctor does not offer, a slot outside his
+	 * working hours - are signalled with {@link IllegalArgumentException} by
+	 * the service layer. Without this handler Spring would answer 500 and the
+	 * client would get a stack trace instead of the rule it violated.
+	 *
+	 * <p>The exception type is caught as a whole (this is what Spring does for
+	 * {@code IllegalArgumentException}); a genuine internal one would therefore
+	 * also be reported as 400.</p>
+	 */
+	@ExceptionHandler(IllegalArgumentException.class)
+	public ProblemDetail handleIllegalArgument(IllegalArgumentException ex) {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
 		problem.setTitle("Bad request");
 		return problem;
 	}

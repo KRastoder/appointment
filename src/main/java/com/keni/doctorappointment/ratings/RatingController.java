@@ -1,7 +1,7 @@
 package com.keni.doctorappointment.ratings;
 
-import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 import jakarta.validation.Valid;
 
@@ -55,8 +55,8 @@ public class RatingController {
 	}
 
 	@GetMapping("/doctor/{doctorId}/average")
-	public java.util.Map<String, Object> getAverageRating(@PathVariable Long doctorId) {
-		return java.util.Map.of(
+	public Map<String, Object> getAverageRating(@PathVariable Long doctorId) {
+		return Map.of(
 				"doctorId", doctorId,
 				"averageRating", ratingService.getAverageRating(doctorId),
 				"ratingCount", ratingService.getRatingCount(doctorId));

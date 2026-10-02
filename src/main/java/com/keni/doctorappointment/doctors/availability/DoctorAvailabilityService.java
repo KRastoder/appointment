@@ -1,5 +1,6 @@
 package com.keni.doctorappointment.doctors.availability;
 
+import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
@@ -25,9 +26,12 @@ import com.keni.doctorappointment.security.AppUserPrincipal;
  *
  * <p>Only the doctor himself (own schedule) or an ADMIN may read/modify.</p>
  *
- * <p>Availability is stored in the doctor's local time zone (the doctor's
- * {@link ZoneId} is not modelled yet; this will use the application's default
- * zone via the {@link Clock} bean for now).</p>
+ * <p>Weekly hours are stored as wall-clock times in the clinic's zone, which
+ * comes from the application {@link Clock} ({@code TimeConfig}) rather than from
+ * {@link ZoneId#systemDefault()}. A per-doctor zone is not modelled yet; pinning
+ * the clock's zone is what makes that possible without touching this code.
+ * Tests can therefore move time and the zone deterministically instead of
+ * waiting for a real day to pass.</p>
  */
 @Service
 @RequiredArgsConstructor
@@ -38,6 +42,12 @@ public class DoctorAvailabilityService {
 	private final DoctorTimeOffRepository timeOffRepository;
 
 	private final DoctorRepository doctorRepository;
+
+	/**
+	 * Weekly hours are local to the clinic, so the zone comes from the clock
+	 * rather than from {@link ZoneId#systemDefault()} (see {@code TimeConfig}).
+	 */
+	private final Clock clock;
 
 	// --- availability ----------------------------------------------------
 
@@ -51,6 +61,9 @@ public class DoctorAvailabilityService {
 	@Transactional
 	public DoctorAvailabilityResponse add(AppUserPrincipal principal, DoctorAvailabilityRequest req) {
 		assertIsDoctorOrAdmin(principal);
+		if (!req.endTime().isAfter(req.startTime())) {
+			throw new IllegalArgumentException("endTime must be after startTime");
+		}
 		Doctor doctor = doctorRepository.getReferenceById(principal.id());
 		DoctorAvailability a = new DoctorAvailability(doctor, req.dayOfWeek(), req.startTime(), req.endTime());
 		return DoctorAvailabilityResponse.from(availabilityRepository.save(a));
@@ -79,6 +92,9 @@ public class DoctorAvailabilityService {
 	@Transactional
 	public DoctorTimeOffResponse addTimeOff(AppUserPrincipal principal, DoctorTimeOffRequest req) {
 		assertIsDoctorOrAdmin(principal);
+		if (!req.endAt().isAfter(req.startAt())) {
+			throw new IllegalArgumentException("endAt must be after startAt");
+		}
 		Doctor doctor = doctorRepository.getReferenceById(principal.id());
 		DoctorTimeOff t = new DoctorTimeOff(doctor, req.startAt(), req.endAt(), req.reason());
 		return DoctorTimeOffResponse.from(timeOffRepository.save(t));
@@ -111,7 +127,7 @@ public class DoctorAvailabilityService {
 			return false;
 		}
 
-		ZoneId zone = ZoneId.systemDefault();
+		ZoneId zone = clock.getZone();
 		DayOfWeek dow = start.atZoneSameInstant(zone).getDayOfWeek();
 		LocalTime startLocal = start.atZoneSameInstant(zone).toLocalTime();
 		LocalTime endLocal = end.atZoneSameInstant(zone).toLocalTime();
@@ -138,7 +154,10 @@ public class DoctorAvailabilityService {
 	// --- helpers ---------------------------------------------------------
 
 	private void assertIsDoctorOrAdmin(AppUserPrincipal principal) {
-		if (!principal.isDoctor() && !principal.isAdmin()) {
+		// The filter chain already rejects anonymous callers; the null check is
+		// defence in depth so a future routing change answers 403 instead of
+		// failing with a NullPointerException.
+		if (principal == null || (!principal.isDoctor() && !principal.isAdmin())) {
 			throw new AccessDeniedException("Only doctors or ADMINs may manage availability");
 		}
 	}

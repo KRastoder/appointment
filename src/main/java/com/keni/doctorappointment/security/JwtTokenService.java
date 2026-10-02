@@ -41,6 +41,9 @@ public class JwtTokenService {
 
 	static final String CLAIM_TYPE = "typ";
 
+	/** Issued-at claim (epoch seconds); the filter needs it to spot deleted accounts. */
+	public static final String CLAIM_ISSUED_AT = "iat";
+
 	public static final String CLAIM_TOKEN_TYPE = "token_type";
 
 	static final String TYPE_ACCESS = "access";
@@ -91,7 +94,7 @@ public class JwtTokenService {
 		claims.put(CLAIM_TOKEN_TYPE, tokenType);
 		// Two tokens for the same account issued in the same second must differ.
 		claims.put("jti", java.util.UUID.randomUUID().toString());
-		claims.put("iat", issuedAt.getEpochSecond());
+		claims.put(CLAIM_ISSUED_AT, issuedAt.getEpochSecond());
 		return claims;
 	}
 

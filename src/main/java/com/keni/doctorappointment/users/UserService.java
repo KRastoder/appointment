@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.keni.doctorappointment.common.ResourceConflictException;
 import com.keni.doctorappointment.doctors.DoctorRepository;
 import com.keni.doctorappointment.security.AppUserPrincipal;
+import com.keni.doctorappointment.security.DeletedAccountRegistry;
 import com.keni.doctorappointment.common.dto.ChangePasswordRequest;
 import com.keni.doctorappointment.users.dto.RegisterUserRequest;
 import com.keni.doctorappointment.users.dto.UpdateUserRequest;
@@ -38,6 +39,8 @@ public class UserService {
 	private final DoctorRepository doctorRepository;
 
 	private final PasswordEncoder passwordEncoder;
+
+	private final DeletedAccountRegistry deletedAccounts;
 
 	/** Public self registration: always a patient account. */
 	@Transactional
@@ -106,6 +109,10 @@ public class UserService {
 		User user = requireUser(id);
 		assertNoBookings(user);
 		userRepository.delete(user);
+		// The account is gone, so its outstanding access tokens must stop working.
+		deletedAccounts.invalidate(user.getRole() == UserRole.ADMIN
+				? AppUserPrincipal.AccountType.ADMIN
+				: AppUserPrincipal.AccountType.PATIENT, user.getId());
 	}
 
 	/** Password change for the authenticated account. */

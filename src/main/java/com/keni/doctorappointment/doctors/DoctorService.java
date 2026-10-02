@@ -16,6 +16,7 @@ import com.keni.doctorappointment.doctors.dto.UpdateDoctorRequest;
 import com.keni.doctorappointment.doctorservices.DoctorServiceId;
 import com.keni.doctorappointment.doctorservices.DoctorServiceRepository;
 import com.keni.doctorappointment.security.AppUserPrincipal;
+import com.keni.doctorappointment.security.DeletedAccountRegistry;
 import com.keni.doctorappointment.services.ServiceRepository;
 import com.keni.doctorappointment.users.UserRepository;
 import com.keni.doctorappointment.users.UserService;
@@ -40,6 +41,8 @@ public class DoctorService {
 	private final UserRepository userRepository;
 
 	private final PasswordEncoder passwordEncoder;
+
+	private final DeletedAccountRegistry deletedAccounts;
 
 	@Transactional
 	public DoctorResponse create(CreateDoctorRequest request) {
@@ -95,6 +98,8 @@ public class DoctorService {
 	@Transactional
 	public void delete(Long id) {
 		doctorRepository.delete(requireDoctor(id));
+		// The account is gone, so its outstanding access tokens must stop working.
+		deletedAccounts.invalidate(AppUserPrincipal.AccountType.DOCTOR, id);
 	}
 
 	/** Profile of the authenticated doctor. */

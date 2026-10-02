@@ -1,17 +1,18 @@
 package com.keni.doctorappointment.doctors.availability.dto;
 
+import java.time.OffsetDateTime;
+
 import jakarta.validation.constraints.NotNull;
-import lombok.Value;
 
-@Value
-public class DoctorTimeOffRequest {
+/** Blocked period (holiday, sick leave, ...) of a doctor. */
+public record DoctorTimeOffRequest(
 
-	@NotNull(message = "startAt is required")
-	java.time.OffsetDateTime startAt;
+		@NotNull(message = "startAt is required")
+		OffsetDateTime startAt,
 
-	@NotNull(message = "endAt is required")
-	java.time.OffsetDateTime endAt;
+		@NotNull(message = "endAt is required")
+		OffsetDateTime endAt,
 
-	String reason;
+		String reason) {
 
 }
