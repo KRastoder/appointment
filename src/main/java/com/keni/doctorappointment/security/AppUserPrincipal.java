@@ -56,6 +56,10 @@ public record AppUserPrincipal(
 		return this.accountType == AccountType.DOCTOR;
 	}
 
+	public boolean isPatient() {
+		return this.accountType == AccountType.PATIENT;
+	}
+
 	public boolean isAdmin() {
 		return this.accountType == AccountType.ADMIN;
 	}

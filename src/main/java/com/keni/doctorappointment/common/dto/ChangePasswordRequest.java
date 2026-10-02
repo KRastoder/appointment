@@ -1,4 +1,4 @@
-package com.keni.doctorappointment.users.dto;
+package com.keni.doctorappointment.common.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;

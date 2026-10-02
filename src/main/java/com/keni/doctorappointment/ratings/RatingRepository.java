@@ -1,6 +1,7 @@
 package com.keni.doctorappointment.ratings;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -18,7 +19,7 @@ public interface RatingRepository extends JpaRepository<Rating, Long> {
 
 	List<Rating> findByUser_IdOrderByCreatedAtDesc(Long userId);
 
-	List<Rating> findByAppointment_Id(Long appointmentId);
+	Optional<Rating> findByAppointment_Id(Long appointmentId);
 
 	@Query("""
 			select r.score
@@ -26,5 +27,7 @@ public interface RatingRepository extends JpaRepository<Rating, Long> {
 			where r.doctor.id = :doctorId
 			""")
 	List<Short> findScoresByDoctorId(Long doctorId);
+
+	long countByDoctor_Id(Long doctorId);
 
 }

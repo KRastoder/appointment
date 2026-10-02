@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.keni.doctorappointment.common.dto.ChangePasswordRequest;
 import com.keni.doctorappointment.doctors.dto.CreateDoctorRequest;
 import com.keni.doctorappointment.doctors.dto.DoctorResponse;
 import com.keni.doctorappointment.doctors.dto.UpdateDoctorRequest;
@@ -47,6 +48,20 @@ public class DoctorController {
 	@GetMapping
 	public List<DoctorResponse> findAll() {
 		return doctorService.findAll();
+	}
+
+	/** Profile of the authenticated doctor. */
+	@GetMapping("/me")
+	public DoctorResponse me(@AuthenticationPrincipal AppUserPrincipal principal) {
+		return doctorService.getMine(principal);
+	}
+
+	/** Password change for the authenticated doctor (current password required). */
+	@PutMapping("/me/password")
+	public ResponseEntity<Void> changePassword(@AuthenticationPrincipal AppUserPrincipal principal,
+			@Valid @RequestBody ChangePasswordRequest request) {
+		doctorService.changePassword(principal, request);
+		return ResponseEntity.noContent().build();
 	}
 
 	@GetMapping("/{id}")

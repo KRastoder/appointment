@@ -9,6 +9,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.keni.doctorappointment.common.dto.ChangePasswordRequest;
 import com.keni.doctorappointment.doctors.dto.CreateDoctorRequest;
 import com.keni.doctorappointment.doctors.dto.DoctorResponse;
 import com.keni.doctorappointment.doctors.dto.UpdateDoctorRequest;
@@ -96,6 +97,25 @@ public class DoctorService {
 		doctorRepository.delete(requireDoctor(id));
 	}
 
+	/** Profile of the authenticated doctor. */
+	@Transactional(readOnly = true)
+	public DoctorResponse getMine(AppUserPrincipal principal) {
+		return DoctorResponse.from(requireOwnedDoctor(principal));
+	}
+
+	/** Password change for the authenticated doctor (same rules as for patients). */
+	@Transactional
+	public void changePassword(AppUserPrincipal principal, ChangePasswordRequest request) {
+		Doctor doctor = requireOwnedDoctor(principal);
+
+		if (!passwordEncoder.matches(request.currentPassword(), doctor.getPasswordHash())) {
+			throw new org.springframework.security.authentication.BadCredentialsException(
+					"Current password is wrong");
+		}
+		doctor.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+		doctorRepository.save(doctor);
+	}
+
 	/** Ids of the services this doctor offers. */
 	@Transactional(readOnly = true)
 	public List<Long> offeredServiceIds(Long doctorId) {
@@ -129,6 +149,13 @@ public class DoctorService {
 	private Doctor requireDoctor(Long id) {
 		return doctorRepository.findById(id)
 			.orElseThrow(() -> new NoSuchElementException("Doctor %d not found".formatted(id)));
+	}
+
+	private Doctor requireOwnedDoctor(AppUserPrincipal principal) {
+		if (!principal.isDoctor()) {
+			throw new AccessDeniedException("This endpoint is for doctor accounts");
+		}
+		return requireDoctor(principal.id());
 	}
 
 	private void assertCanManage(AppUserPrincipal principal, Long targetId) {

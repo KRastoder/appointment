@@ -62,6 +62,9 @@ public class SecurityConfig {
 				// refresh token in the request body, no Bearer token needed).
 				.requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/register", "/api/auth/logout")
 				.permitAll()
+				// The doctor's own account endpoints need a token (must come
+				// before the public GET /api/doctors/** rule below).
+				.requestMatchers("/api/doctors/me", "/api/doctors/me/password").authenticated()
 				// Public catalogue reads.
 				.requestMatchers(HttpMethod.GET, "/api/services/**", "/api/doctors/**", "/api/ratings/**")
 				.permitAll()

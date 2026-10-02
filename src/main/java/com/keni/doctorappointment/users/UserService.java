@@ -14,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.keni.doctorappointment.common.ResourceConflictException;
 import com.keni.doctorappointment.doctors.DoctorRepository;
 import com.keni.doctorappointment.security.AppUserPrincipal;
-import com.keni.doctorappointment.users.dto.ChangePasswordRequest;
+import com.keni.doctorappointment.common.dto.ChangePasswordRequest;
 import com.keni.doctorappointment.users.dto.RegisterUserRequest;
 import com.keni.doctorappointment.users.dto.UpdateUserRequest;
 import com.keni.doctorappointment.users.dto.UserResponse;

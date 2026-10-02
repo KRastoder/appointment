@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.keni.doctorappointment.security.AppUserPrincipal;
-import com.keni.doctorappointment.users.dto.ChangePasswordRequest;
+import com.keni.doctorappointment.common.dto.ChangePasswordRequest;
 import com.keni.doctorappointment.users.dto.RegisterUserRequest;
 import com.keni.doctorappointment.users.dto.UpdateUserRequest;
 import com.keni.doctorappointment.users.dto.UserResponse;

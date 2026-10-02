@@ -154,6 +154,16 @@ class AppointmentApprovalSecurityTest extends AuthTestSupport {
 			.isEqualTo(HttpStatus.FORBIDDEN);
 	}
 
+	@Test
+	void doctorAndPatientIdsFromDifferentTablesDoNotCollide() {
+		// Regression for the cross-table id collision: user 2 and doctor 2 are
+		// different people sharing a numeric id; only the account type tells
+		// them apart. doctorTwo (whose id may equal the patient's) must NOT be
+		// able to read the appointment of doctorOne.
+		assertThat(get("/api/appointments/" + ownAppointment.getId(), doctorTwoEmail).getStatusCode())
+			.isEqualTo(HttpStatus.FORBIDDEN);
+	}
+
 	// --- /me/pending and /me/approved ------------------------------------
 
 	@Test

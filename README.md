@@ -122,6 +122,8 @@ Doctors and services:
 | method | path                                    | who     |
 |--------|-----------------------------------------|---------|
 | GET    | `/api/doctors`, `/api/doctors/{id}`     | public  |
+| GET    | `/api/doctors/me`                       | doctor  |
+| PUT    | `/api/doctors/me/password`              | doctor  |
 | POST   | `/api/doctors`                          | ADMIN   |
 | PUT    | `/api/doctors/{id}`                     | self/ADMIN |
 | DELETE | `/api/doctors/{id}`                     | ADMIN   |

@@ -146,6 +146,37 @@ class AdminAuthorizationTest extends AuthTestSupport {
 	}
 
 	@Test
+	void doctorManagesHisOwnAccount() {
+		String doctorEmail = createDoctorByAdmin(ADMIN, ADMIN_PASSWORD, uniqueEmail("doctor"), PASSWORD,
+				"Neurology");
+
+		// own profile
+		ResponseEntity<String> me = call("/api/doctors/me", HttpMethod.GET, doctorEmail, null);
+		assertThat(me.getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat(me.getBody()).contains(doctorEmail);
+
+		// anonymous must not reach /api/doctors/me
+		assertThat(call("/api/doctors/me", HttpMethod.GET, null, null).getStatusCode())
+			.isEqualTo(HttpStatus.UNAUTHORIZED);
+
+		// password change requires the current password
+		assertThat(call("/api/doctors/me/password", HttpMethod.PUT, doctorEmail,
+				Map.of("currentPassword", "wrong1234", "newPassword", "NewPass123")).getStatusCode())
+			.isEqualTo(HttpStatus.UNAUTHORIZED);
+
+		assertThat(call("/api/doctors/me/password", HttpMethod.PUT, doctorEmail,
+				Map.of("currentPassword", PASSWORD, "newPassword", "NewPass123")).getStatusCode())
+			.isEqualTo(HttpStatus.NO_CONTENT);
+
+		// new password works, old one is rejected
+		assertThat(restTemplate.postForEntity("/api/auth/login", Map.of("email", doctorEmail, "password",
+				"NewPass123"), String.class).getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat(restTemplate.postForEntity("/api/auth/login",
+				Map.of("email", doctorEmail, "password", PASSWORD), String.class).getStatusCode())
+			.isEqualTo(HttpStatus.UNAUTHORIZED);
+	}
+
+	@Test
 	void adminPromotesAndDemotesRoles() {
 		String patient = createPatientByAdmin(ADMIN, ADMIN_PASSWORD, uniqueEmail("patient"), PASSWORD);
 
