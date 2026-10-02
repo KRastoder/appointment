@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.boot.resttestclient.TestRestTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -16,13 +16,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 import com.keni.doctorappointment.support.AuthTestSupport;
-import com.keni.doctorappointment.support.PostgresTestSupport;
 
 /**
  * Registration, login, refresh and logout over the real HTTP API.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class AuthApiTest extends PostgresTestSupport {
+class AuthApiTest extends AuthTestSupport {
 
 	private static final AtomicInteger SEQ = new AtomicInteger();
 
@@ -36,7 +35,7 @@ class AuthApiTest extends PostgresTestSupport {
 	private TestRestTemplate template;
 
 	private String uniqueEmail() {
-		return "patient-" + SEQ.incrementAndGet() + "@example.org";
+		return "auth-patient-" + SEQ.incrementAndGet() + "@example.org";
 	}
 
 	@Test

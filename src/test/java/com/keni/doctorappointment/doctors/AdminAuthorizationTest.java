@@ -17,14 +17,13 @@ import org.springframework.http.ResponseEntity;
 
 import com.keni.doctorappointment.services.ServiceRepository;
 import com.keni.doctorappointment.support.AuthTestSupport;
-import com.keni.doctorappointment.support.PostgresTestSupport;
 
 /**
  * The ADMIN role: managing the service catalogue, doctor accounts and the
  * services a doctor offers. Also verifies that patients and doctors cannot.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class AdminAuthorizationTest extends PostgresTestSupport {
+class AdminAuthorizationTest extends AuthTestSupport {
 
 	private static final AtomicInteger SEQ = new AtomicInteger();
 
@@ -127,7 +126,7 @@ class AdminAuthorizationTest extends PostgresTestSupport {
 			.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
 
 		assertThat(call("/api/doctors/" + doctorId, HttpMethod.GET, null, null).getBody())
-			.doesNotContain(serviceId.toString());
+			.contains("\"serviceIds\":[]");
 	}
 
 	@Test
@@ -172,7 +171,7 @@ class AdminAuthorizationTest extends PostgresTestSupport {
 	// --- helpers ---------------------------------------------------------
 
 	private String uniqueEmail(String prefix) {
-		return prefix + "-" + SEQ.incrementAndGet() + "@example.org";
+		return "admin-" + prefix + "-" + SEQ.incrementAndGet() + "@example.org";
 	}
 
 	/** Calls the API as the account behind {@code loginEmail}; null = anonymous. */

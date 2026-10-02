@@ -58,8 +58,10 @@ public class SecurityConfig {
 			.exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(entryPoint))
 			.authorizeHttpRequests(requests -> requests
 				.requestMatchers("/error").permitAll()
-				// Authentication endpoints.
-				.requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/register").permitAll()
+				// Authentication endpoints (logout is authenticated by the
+				// refresh token in the request body, no Bearer token needed).
+				.requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/register", "/api/auth/logout")
+				.permitAll()
 				// Public catalogue reads.
 				.requestMatchers(HttpMethod.GET, "/api/services/**", "/api/doctors/**", "/api/ratings/**")
 				.permitAll()

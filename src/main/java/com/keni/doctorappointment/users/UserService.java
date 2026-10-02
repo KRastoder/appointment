@@ -100,14 +100,11 @@ public class UserService {
 
 	@Transactional
 	public void delete(Long id, AppUserPrincipal principal) {
-		boolean self = isSelf(id, principal);
-		if (!self && !principal.isAdmin()) {
+		if (!isSelf(id, principal) && !principal.isAdmin()) {
 			throw new AccessDeniedException("Only an ADMIN may delete other accounts");
 		}
 		User user = requireUser(id);
-		if (!self) {
-			assertNoBookings(user);
-		}
+		assertNoBookings(user);
 		userRepository.delete(user);
 	}
 

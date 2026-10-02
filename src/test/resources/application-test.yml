@@ -1,9 +1,13 @@
 # ---------------------------------------------------------------------
-# Settings for the test profile.
-# The datasource itself is provided per test class by Testcontainers
-# (see PostgresTestSupport), so no credentials are needed here.
+# Test profile. The datasource itself is provided per test class by
+# Testcontainers (see PostgresTestSupport).
+#
+# Allow overriding the PasswordEncoder bean with a fast test encoder
+# (BCrypt with the default cost makes the HTTP tests unnecessarily slow).
 # ---------------------------------------------------------------------
 spring:
+  main:
+    allow-bean-definition-overriding: true
   jpa:
     hibernate:
       ddl-auto: validate
@@ -11,8 +15,3 @@ spring:
   flyway:
     enabled: true
     clean-disabled: true
-
-logging:
-  level:
-    org.hibernate.SQL: WARN
-    com.keni.doctorappointment: INFO

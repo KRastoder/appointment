@@ -43,7 +43,7 @@ class FlywaySchemaTest extends PostgresTestSupport {
 	void emailsAreUniqueCaseInsensitively() {
 		// the unique constraints were replaced by indexes on LOWER(email)
 		assertThat(indexDefinitions()).contains("uq_users_email_lower").contains("uq_doctors_email_lower");
-		assertThat(columnType("users", "role")).isEqualTo("character varying");
+		assertThat(columnDataType("users", "role")).isEqualTo("character varying");
 	}
 
 	@Test
@@ -88,8 +88,8 @@ class FlywaySchemaTest extends PostgresTestSupport {
 	void scoreCheckConstraintRejectsOutOfRangeValues() {
 		assertThat(columnIsNullable("ratings", "score")).isFalse();
 
-		jdbcTemplate.update("INSERT INTO doctors (first_name, last_name, email, specialization) "
-				+ "VALUES ('Ada', 'Lovelace', 'ada@example.org', 'Cardiology')");
+		jdbcTemplate.update("INSERT INTO doctors (first_name, last_name, email, password_hash, specialization) "
+				+ "VALUES ('Ada', 'Lovelace', 'ada@example.org', 'hash', 'Cardiology')");
 		jdbcTemplate.update("INSERT INTO users (first_name, last_name, email, password_hash) "
 				+ "VALUES ('Alan', 'Turing', 'alan@example.org', 'hash')");
 		Long doctorId = jdbcTemplate.queryForObject(

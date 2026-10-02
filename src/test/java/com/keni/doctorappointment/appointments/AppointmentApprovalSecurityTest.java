@@ -22,7 +22,6 @@ import com.keni.doctorappointment.doctors.DoctorRepository;
 import com.keni.doctorappointment.services.Service;
 import com.keni.doctorappointment.services.ServiceRepository;
 import com.keni.doctorappointment.support.AuthTestSupport;
-import com.keni.doctorappointment.support.PostgresTestSupport;
 import com.keni.doctorappointment.users.User;
 import com.keni.doctorappointment.users.UserRepository;
 
@@ -32,7 +31,7 @@ import com.keni.doctorappointment.users.UserRepository;
  * pending and approved appointments.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class AppointmentApprovalSecurityTest extends PostgresTestSupport {
+class AppointmentApprovalSecurityTest extends AuthTestSupport {
 
 	private static final String PASSWORD = "Doctor123";
 
@@ -71,9 +70,9 @@ class AppointmentApprovalSecurityTest extends PostgresTestSupport {
 		int n = SEQ.incrementAndGet();
 		String adminToken = login(ADMIN, ADMIN_PASSWORD).accessToken();
 
-		doctorOneEmail = createDoctor(adminToken, "doctor-one-" + n + "@example.org");
-		doctorTwoEmail = createDoctor(adminToken, "doctor-two-" + n + "@example.org");
-		patientEmail = createPatientByAdmin(ADMIN, ADMIN_PASSWORD, "patient-" + n + "@example.org", PASSWORD);
+		doctorOneEmail = createDoctor(adminToken, "appt-doctor-one-" + n + "@example.org");
+		doctorTwoEmail = createDoctor(adminToken, "appt-doctor-two-" + n + "@example.org");
+		patientEmail = createPatientByAdmin(ADMIN, ADMIN_PASSWORD, "appt-patient-" + n + "@example.org", PASSWORD);
 
 		Doctor doctorOne = doctors.findByEmailIgnoreCase(doctorOneEmail).orElseThrow();
 		Doctor doctorTwo = doctors.findByEmailIgnoreCase(doctorTwoEmail).orElseThrow();
@@ -104,11 +103,13 @@ class AppointmentApprovalSecurityTest extends PostgresTestSupport {
 
 	@Test
 	void invalidAndForgedTokensAreRejected() {
-		assertThat(get("/api/appointments/me", "not-a-jwt").getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+		assertThat(getWithRawToken("/api/appointments/me", "not-a-jwt").getStatusCode())
+			.isEqualTo(HttpStatus.UNAUTHORIZED);
 
 		String token = login(doctorOneEmail, PASSWORD).accessToken();
 		String forged = token.substring(0, token.length() - 3) + "AAA";
-		assertThat(get("/api/appointments/me", forged).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+		assertThat(getWithRawToken("/api/appointments/me", forged).getStatusCode())
+			.isEqualTo(HttpStatus.UNAUTHORIZED);
 	}
 
 	@Test
@@ -119,13 +120,13 @@ class AppointmentApprovalSecurityTest extends PostgresTestSupport {
 	}
 
 	@Test
-	void catalogueIsPublicButPatientsAreNot() {
+	void catalogueIsPublicButUserManagementIsAdminOnly() {
 		assertThat(get("/api/services", null).getStatusCode()).isEqualTo(HttpStatus.OK);
 		assertThat(get("/api/doctors", null).getStatusCode()).isEqualTo(HttpStatus.OK);
 
 		assertThat(get("/api/users", null).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
-		assertThat(get("/api/users", login(patientEmail, PASSWORD).accessToken()).getStatusCode())
-			.isEqualTo(HttpStatus.OK);
+		assertThat(get("/api/users", patientEmail).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+		assertThat(get("/api/users", ADMIN).getStatusCode()).isEqualTo(HttpStatus.OK);
 	}
 
 	// --- /me ------------------------------------------------------------
@@ -135,16 +136,16 @@ class AppointmentApprovalSecurityTest extends PostgresTestSupport {
 		ResponseEntity<String> response = get("/api/appointments/me", doctorOneEmail);
 
 		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-		assertThat(response.getBody()).contains(ownAppointment.getId().toString())
-			.doesNotContain(foreignAppointment.getId().toString());
+		assertThat(response.getBody()).contains("\"id\":" + ownAppointment.getId())
+			.doesNotContain("\"id\":" + foreignAppointment.getId());
 	}
 
 	@Test
 	void patientSeesHisOwnBookings() {
 		ResponseEntity<String> response = get("/api/appointments/me", patientEmail);
 
-		assertThat(response.getBody()).contains(ownAppointment.getId().toString())
-			.contains(foreignAppointment.getId().toString());
+		assertThat(response.getBody()).contains("\"id\":" + ownAppointment.getId())
+			.contains("\"id\":" + foreignAppointment.getId());
 	}
 
 	@Test
@@ -158,17 +159,17 @@ class AppointmentApprovalSecurityTest extends PostgresTestSupport {
 	@Test
 	void pendingContainsScheduledAndApprovedContainsConfirmed() {
 		assertThat(get("/api/appointments/me/pending", doctorOneEmail).getBody())
-			.contains(ownAppointment.getId().toString());
-		assertThat(get("/api/appointments/me/approved", doctorOneEmail).getBody()).doesNotContain("\"id\"");
+			.contains("\"id\":" + ownAppointment.getId());
+		assertThat(get("/api/appointments/me/approved", doctorOneEmail).getBody()).isEqualTo("[]");
 
-		ResponseEntity<String> approved = post("/api/appointments/" + ownAppointment.getId() + "/approve", null,
-				null);
+		ResponseEntity<String> approved = postAs(doctorOneEmail,
+				"/api/appointments/" + ownAppointment.getId() + "/approve");
 		assertThat(approved.getStatusCode()).isEqualTo(HttpStatus.OK);
 		assertThat(approved.getBody()).contains("\"status\":\"CONFIRMED\"");
 
-		assertThat(get("/api/appointments/me/pending", doctorOneEmail).getBody()).doesNotContain("\"id\"");
+		assertThat(get("/api/appointments/me/pending", doctorOneEmail).getBody()).isEqualTo("[]");
 		assertThat(get("/api/appointments/me/approved", doctorOneEmail).getBody())
-			.contains(ownAppointment.getId().toString());
+			.contains("\"id\":" + ownAppointment.getId());
 	}
 
 	@Test
@@ -217,6 +218,11 @@ class AppointmentApprovalSecurityTest extends PostgresTestSupport {
 		return exchange(path, HttpMethod.GET, loginEmail == null ? null : tokenOf(loginEmail), null);
 	}
 
+	/** Sends a raw bearer token (e.g. a forged one), never logs in first. */
+	private ResponseEntity<String> getWithRawToken(String path, String rawBearerToken) {
+		return exchange(path, HttpMethod.GET, rawBearerToken, null);
+	}
+
 	private ResponseEntity<String> postAs(String loginEmail, String path) {
 		return exchange(path, HttpMethod.POST, tokenOf(loginEmail), null);
 	}
@@ -226,7 +232,7 @@ class AppointmentApprovalSecurityTest extends PostgresTestSupport {
 	}
 
 	private String tokenOf(String loginEmail) {
-		return login(loginEmail, PASSWORD).accessToken();
+		return login(loginEmail, ADMIN.equals(loginEmail) ? ADMIN_PASSWORD : PASSWORD).accessToken();
 	}
 
 	private ResponseEntity<String> exchange(String path, HttpMethod method, String accessToken,

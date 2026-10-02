@@ -1,7 +1,7 @@
 # ---------------------------------------------------------------------
-# Doctor Appointment Booking backend - application configuration
-# Everything environment specific comes from environment variables.
-# NO credentials are stored in this file (see .env.example).
+# Doctor Appointment Booking - application configuration
+# Everything environment specific comes from environment variables
+# (see .env.example). Defaults below are for local development.
 # ---------------------------------------------------------------------
 spring:
   application:
@@ -12,15 +12,11 @@ spring:
     username: ${DB_USERNAME:doctor}
     password: ${DB_PASSWORD:}
     driver-class-name: org.postgresql.Driver
-    hikari:
-      maximum-pool-size: 10
-      connection-timeout: 10000
 
   # Flyway owns the schema. Hibernate only validates it.
   flyway:
     enabled: true
     locations: classpath:db/migration
-    baseline-on-migrate: false
     validate-on-migrate: true
     clean-disabled: true
 
@@ -29,25 +25,13 @@ spring:
     hibernate:
       ddl-auto: validate
     open-in-view: false
-    properties:
-      hibernate:
-        jdbc:
-          batch_size: 30
-        order_inserts: true
-
-  # Spring Boot 4 uses Jackson 3, which serialises java.time values as
-  # ISO-8601 strings by default (OffsetDateTime -> "2026-11-02T10:00+01:00").
-  # No explicit date/time feature is needed.
 
 server:
   port: ${SERVER_PORT:8080}
-  error:
-    include-message: always
 
 # ---------------------------------------------------------------------
-# JWT (hand-rolled HS256, no OAuth2 libraries)
-# JWT_SECRET must be at least 32 bytes. The value below is a DEVELOPMENT
-# DEFAULT ONLY - always set JWT_SECRET in any shared or deployed environment.
+# Simple hand-rolled HS256 JWT (no OAuth2 libraries).
+# JWT_SECRET must be at least 32 bytes; the default is for local dev only.
 # ---------------------------------------------------------------------
 app:
   security:
@@ -58,11 +42,7 @@ app:
       refresh-token-ttl: ${JWT_REFRESH_TOKEN_TTL:14d}
   bootstrap:
     admin:
-      # Created on first start only (only an ADMIN may create accounts).
-      # Set BOOTSTRAP_ADMIN_EMAIL= to disable. Change the password after login.
+      # First ADMIN account, created on first start only (only an ADMIN may
+      # create accounts). Set BOOTSTRAP_ADMIN_EMAIL= to disable.
       email: ${BOOTSTRAP_ADMIN_EMAIL:admin@doctor-appointment.local}
       password: ${BOOTSTRAP_ADMIN_PASSWORD:Admin12345}
-
-logging:
-  level:
-    com.keni.doctorappointment: INFO

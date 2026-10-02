@@ -41,11 +41,11 @@ public class JwtTokenService {
 
 	static final String CLAIM_TYPE = "typ";
 
-	static final String CLAIM_TOKEN_TYPE = "token_type";
+	public static final String CLAIM_TOKEN_TYPE = "token_type";
 
 	static final String TYPE_ACCESS = "access";
 
-	static final String TYPE_REFRESH = "refresh";
+	public static final String TYPE_REFRESH = "refresh";
 
 	private static final String HMAC_ALGORITHM = "HmacSHA256";
 
@@ -69,29 +69,30 @@ public class JwtTokenService {
 
 	/** Issues a signed access token carrying identity and roles. */
 	public String createAccessToken(AppUserPrincipal principal, Instant issuedAt) {
-		Map<String, Object> claims = Map.of(
-				"sub", principal.getUsername(),
-				"iss", properties.issuer(),
-				"account_id", principal.id(),
-				"account_type", principal.accountType().name(),
-				CLAIM_ROLES, principal.roles(),
-				CLAIM_TOKEN_TYPE, TYPE_ACCESS,
-				"iat", issuedAt.getEpochSecond(),
-				"exp", issuedAt.plus(properties.accessTokenTtl()).getEpochSecond());
+		Map<String, Object> claims = baseClaims(principal, issuedAt, TYPE_ACCESS);
+		claims.put(CLAIM_ROLES, principal.roles());
+		claims.put("exp", issuedAt.plus(properties.accessTokenTtl()).getEpochSecond());
 		return sign(claims);
 	}
 
 	/** Issues a signed refresh token (no roles: it only buys new tokens). */
 	public String createRefreshToken(AppUserPrincipal principal, Instant issuedAt) {
-		Map<String, Object> claims = Map.of(
-				"sub", principal.getUsername(),
-				"iss", properties.issuer(),
-				"account_id", principal.id(),
-				"account_type", principal.accountType().name(),
-				CLAIM_TOKEN_TYPE, TYPE_REFRESH,
-				"iat", issuedAt.getEpochSecond(),
-				"exp", issuedAt.plus(properties.refreshTokenTtl()).getEpochSecond());
+		Map<String, Object> claims = baseClaims(principal, issuedAt, TYPE_REFRESH);
+		claims.put("exp", issuedAt.plus(properties.refreshTokenTtl()).getEpochSecond());
 		return sign(claims);
+	}
+
+	private Map<String, Object> baseClaims(AppUserPrincipal principal, Instant issuedAt, String tokenType) {
+		Map<String, Object> claims = new java.util.LinkedHashMap<>();
+		claims.put("sub", principal.getUsername());
+		claims.put("iss", properties.issuer());
+		claims.put("account_id", principal.id());
+		claims.put("account_type", principal.accountType().name());
+		claims.put(CLAIM_TOKEN_TYPE, tokenType);
+		// Two tokens for the same account issued in the same second must differ.
+		claims.put("jti", java.util.UUID.randomUUID().toString());
+		claims.put("iat", issuedAt.getEpochSecond());
+		return claims;
 	}
 
 	/**
@@ -151,7 +152,7 @@ public class JwtTokenService {
 		}
 	}
 
-	Instant expiresAtOf(Map<String, Object> claims) {
+	public Instant expiresAtOf(Map<String, Object> claims) {
 		return Instant.ofEpochSecond(asLong(claims.get("exp")));
 	}
 

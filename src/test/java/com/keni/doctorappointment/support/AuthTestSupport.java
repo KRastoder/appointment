@@ -3,7 +3,9 @@ package com.keni.doctorappointment.support;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.boot.resttestclient.TestRestTemplate;
+import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -18,7 +20,9 @@ import org.springframework.http.ResponseEntity;
  * does. The ADMIN account is the bootstrap one from
  * {@code app.bootstrap.admin.*}.</p>
  */
-public abstract class AuthTestSupport {
+@AutoConfigureTestRestTemplate
+@Import(FastTestConfig.class)
+public abstract class AuthTestSupport extends PostgresTestSupport {
 
 	@Autowired
 	protected TestRestTemplate restTemplate;

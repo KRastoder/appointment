@@ -51,6 +51,12 @@ public class UserController {
 		return userService.getMine(principal);
 	}
 
+	@PutMapping("/me")
+	public UserResponse updateMe(@AuthenticationPrincipal AppUserPrincipal principal,
+			@Valid @RequestBody UpdateUserRequest request) {
+		return userService.update(principal.id(), request, principal);
+	}
+
 	@PutMapping("/me/password")
 	public ResponseEntity<Void> changePassword(@AuthenticationPrincipal AppUserPrincipal principal,
 			@Valid @RequestBody ChangePasswordRequest request) {
@@ -79,6 +85,12 @@ public class UserController {
 	public UserResponse update(@PathVariable Long id, @Valid @RequestBody UpdateUserRequest request,
 			@AuthenticationPrincipal AppUserPrincipal principal) {
 		return userService.update(id, request, principal);
+	}
+
+	@DeleteMapping("/me")
+	public ResponseEntity<Void> deleteMe(@AuthenticationPrincipal AppUserPrincipal principal) {
+		userService.delete(principal.id(), principal);
+		return ResponseEntity.noContent().build();
 	}
 
 	@DeleteMapping("/{id}")

@@ -3,34 +3,35 @@ package com.keni.doctorappointment.support;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /**
  * Base class for tests that need a real PostgreSQL schema.
  *
- * <p>A throw-away PostgreSQL instance is started by Testcontainers, Flyway
- * applies the migrations and Hibernate validates the mapping against the
- * resulting schema (H2/embedded databases are deliberately not used: they
- * would not catch PostgreSQL specific DDL problems).</p>
+ * <p>Singleton container: one throw-away PostgreSQL is started manually for
+ * the whole test JVM and shared by every test class. This matters because
+ * Spring caches the application context (and its datasource) between test
+ * classes - if every class started and stopped its own container, a cached
+ * datasource would point at a dead port ("connection refused"). Ryuk cleans
+ * the container up when the JVM exits.</p>
  *
- * <p>{@code disabledWithoutDocker = true} makes the test suite pass (skipped)
- * on machines without a Docker daemon, so {@code ./mvnw test} never fails for
- * environmental reasons. With Docker available the tests run for real.</p>
+ * <p>{@code disabledWithoutDocker = true} skips the whole class when no
+ * Docker daemon is reachable, so {@code ./mvnw test} also passes on machines
+ * without Docker.</p>
  */
 @ActiveProfiles("test")
 @Testcontainers(disabledWithoutDocker = true)
 public abstract class PostgresTestSupport {
 
-	@Container
-	protected static final PostgreSQLContainer POSTGRES = createPostgresContainer();
+	protected static final PostgreSQLContainer POSTGRES = startPostgres();
 
-	private static PostgreSQLContainer createPostgresContainer() {
+	private static PostgreSQLContainer startPostgres() {
 		PostgreSQLContainer container = new PostgreSQLContainer("postgres:17-alpine");
 		container.withDatabaseName("doctor_appointments");
 		container.withUsername("doctor");
 		container.withPassword("doctor");
+		container.start();
 		return container;
 	}
 
