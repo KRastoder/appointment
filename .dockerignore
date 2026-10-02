@@ -1,0 +1,31 @@
+# Keep the Docker build context small and never ship secrets into an image.
+
+.git
+.gitignore
+.github
+.env
+.env.*
+!.env.example
+*.md
+HELP.md
+README.md
+
+# Build output is produced inside the image
+target/
+
+# IDE / OS noise
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.settings/
+.project
+.classpath
+.factorypath
+.sts4-cache
+
+# Local tooling
+docker-compose.yaml
+docker-compose*.yml
+.mvn/wrapper/maven-wrapper.jar

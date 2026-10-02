@@ -1,0 +1,18 @@
+# ---------------------------------------------------------------------
+# Settings for the test profile.
+# The datasource itself is provided per test class by Testcontainers
+# (see PostgresTestSupport), so no credentials are needed here.
+# ---------------------------------------------------------------------
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    clean-disabled: true
+
+logging:
+  level:
+    org.hibernate.SQL: WARN
+    com.keni.doctorappointment: INFO

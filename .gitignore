@@ -31,3 +31,13 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Secrets / local overrides ###
+# Real credentials: only .env.example is committed.
+.env
+.env.local
+*.local
+
+### OS ###
+.DS_Store
+Thumbs.db

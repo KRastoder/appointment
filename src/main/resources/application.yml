@@ -1,0 +1,49 @@
+# ---------------------------------------------------------------------
+# Doctor Appointment Booking backend - application configuration
+# Everything environment specific comes from environment variables.
+# NO credentials are stored in this file (see .env.example).
+# ---------------------------------------------------------------------
+spring:
+  application:
+    name: doctor-appointment
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:doctor_appointments}
+    username: ${DB_USERNAME:doctor}
+    password: ${DB_PASSWORD:}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 10000
+
+  # Flyway owns the schema. Hibernate only validates it.
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+    validate-on-migrate: true
+    clean-disabled: true
+
+  jpa:
+    # Never create/update the schema - Flyway migrations are the source of truth.
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 30
+        order_inserts: true
+
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+server:
+  port: ${SERVER_PORT:8080}
+  error:
+    include-message: always
+
+logging:
+  level:
+    com.keni.doctorappointment: INFO
