@@ -44,6 +44,25 @@ server:
   error:
     include-message: always
 
+# ---------------------------------------------------------------------
+# JWT (hand-rolled HS256, no OAuth2 libraries)
+# JWT_SECRET must be at least 32 bytes. The value below is a DEVELOPMENT
+# DEFAULT ONLY - always set JWT_SECRET in any shared or deployed environment.
+# ---------------------------------------------------------------------
+app:
+  security:
+    jwt:
+      secret: ${JWT_SECRET:dev-only-insecure-jwt-secret-change-me-0123456789}
+      issuer: doctor-appointment
+      access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:30m}
+      refresh-token-ttl: ${JWT_REFRESH_TOKEN_TTL:14d}
+  bootstrap:
+    admin:
+      # Created on first start only (only an ADMIN may create accounts).
+      # Set BOOTSTRAP_ADMIN_EMAIL= to disable. Change the password after login.
+      email: ${BOOTSTRAP_ADMIN_EMAIL:admin@doctor-appointment.local}
+      password: ${BOOTSTRAP_ADMIN_PASSWORD:Admin12345}
+
 logging:
   level:
     com.keni.doctorappointment: INFO

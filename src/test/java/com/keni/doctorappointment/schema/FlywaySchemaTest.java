@@ -32,20 +32,33 @@ class FlywaySchemaTest extends PostgresTestSupport {
 	}
 
 	@Test
-	void doctorServicesUsesCompositePrimaryKey() {
-		assertThat(primaryKeyColumns("doctor_services")).containsExactly("doctor_id", "service_id");
+	void jwtSupportTablesExist() {
+		assertThat(tableNames()).contains("refresh_tokens");
+		assertThat(checkConstraints("refresh_tokens")).contains("ck_refresh_tokens_account_type");
+		assertThat(uniqueColumns("refresh_tokens", "uq_refresh_tokens_token_hash")).isEqualTo(List.of("token_hash"));
+		assertThat(checkConstraints("users")).contains("ck_users_role");
 	}
 
 	@Test
-	void emailsAreUnique() {
-		assertThat(uniqueColumns("users", "uq_users_email")).isEqualTo(List.of("email"));
-		assertThat(uniqueColumns("doctors", "uq_doctors_email")).isEqualTo(List.of("email"));
-		assertThat(uniqueColumns("services", "uq_services_name")).isEqualTo(List.of("name"));
+	void emailsAreUniqueCaseInsensitively() {
+		// the unique constraints were replaced by indexes on LOWER(email)
+		assertThat(indexDefinitions()).contains("uq_users_email_lower").contains("uq_doctors_email_lower");
+		assertThat(columnType("users", "role")).isEqualTo("character varying");
 	}
 
 	@Test
 	void doctorsHaveAPasswordHashColumn() {
 		assertThat(columnIsNullable("doctors", "password_hash")).isFalse();
+	}
+
+	@Test
+	void doctorServicesUsesCompositePrimaryKey() {
+		assertThat(primaryKeyColumns("doctor_services")).containsExactly("doctor_id", "service_id");
+	}
+
+	@Test
+	void serviceNameIsUnique() {
+		assertThat(uniqueColumns("services", "uq_services_name")).isEqualTo(List.of("name"));
 	}
 
 	@Test
@@ -152,6 +165,15 @@ class FlywaySchemaTest extends PostgresTestSupport {
 				FROM information_schema.columns
 				WHERE table_schema = 'public' AND table_name = ? AND column_name = ?
 				""", String.class, table, column);
+	}
+
+	private List<String> indexNames(String table) {
+		return jdbcTemplate.queryForList("SELECT indexname FROM pg_indexes WHERE tablename = ?", String.class, table);
+	}
+
+	private List<String> indexDefinitions() {
+		return jdbcTemplate.queryForList("SELECT indexname FROM pg_indexes WHERE schemaname = 'public'",
+				String.class);
 	}
 
 	private boolean columnIsNullable(String table, String column) {

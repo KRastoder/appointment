@@ -4,9 +4,9 @@ import java.util.List;
 import java.util.NoSuchElementException;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.keni.doctorappointment.common.ResourceConflictException;
 import com.keni.doctorappointment.services.dto.CreateServiceRequest;
 import com.keni.doctorappointment.services.dto.ServiceResponse;
 import com.keni.doctorappointment.services.dto.UpdateServiceRequest;
@@ -81,7 +81,7 @@ public class ServiceService {
 		serviceRepository.findByName(name)
 			.filter(existing -> ownServiceId == null || !existing.getId().equals(ownServiceId))
 			.ifPresent(existing -> {
-				throw new IllegalStateException("A service named %s already exists".formatted(name));
+				throw new ResourceConflictException("A service named %s already exists".formatted(name));
 			});
 	}
 

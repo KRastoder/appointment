@@ -1,54 +1,48 @@
 package com.keni.doctorappointment.appointments;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.http.MediaType;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
 import com.keni.doctorappointment.doctors.Doctor;
 import com.keni.doctorappointment.doctors.DoctorRepository;
 import com.keni.doctorappointment.services.Service;
 import com.keni.doctorappointment.services.ServiceRepository;
+import com.keni.doctorappointment.support.AuthTestSupport;
 import com.keni.doctorappointment.support.PostgresTestSupport;
 import com.keni.doctorappointment.users.User;
 import com.keni.doctorappointment.users.UserRepository;
 
 /**
- * Verifies the authentication / authorisation rules of the appointment module:
- * only the doctor an appointment belongs to may approve it, and a doctor can
- * list his own pending and approved appointments.
+ * Authorisation of the appointment module over the real HTTP API: only the
+ * doctor an appointment belongs to may approve it, and a doctor sees his own
+ * pending and approved appointments.
  */
-@SpringBootTest
-@AutoConfigureMockMvc
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class AppointmentApprovalSecurityTest extends PostgresTestSupport {
 
-	private static final String PASSWORD = "s3cret-pass";
+	private static final String PASSWORD = "Doctor123";
+
+	private static final String ADMIN = "admin@doctor-appointment.local";
+
+	private static final String ADMIN_PASSWORD = "Admin12345";
 
 	private static final AtomicInteger SEQ = new AtomicInteger();
 
 	private static final OffsetDateTime START = OffsetDateTime.parse("2026-11-02T10:00:00+01:00");
-
-	@Autowired
-	private MockMvc mockMvc;
-
-	@Autowired
-	private PasswordEncoder passwordEncoder;
 
 	@Autowired
 	private DoctorRepository doctors;
@@ -62,13 +56,11 @@ class AppointmentApprovalSecurityTest extends PostgresTestSupport {
 	@Autowired
 	private AppointmentRepository appointments;
 
-	private Doctor doctorOne;
+	private String doctorOneEmail;
 
-	private Doctor doctorTwo;
+	private String doctorTwoEmail;
 
-	private User patient;
-
-	private Service service;
+	private String patientEmail;
 
 	private Appointment ownAppointment;
 
@@ -77,12 +69,17 @@ class AppointmentApprovalSecurityTest extends PostgresTestSupport {
 	@BeforeEach
 	void setUp() {
 		int n = SEQ.incrementAndGet();
+		String adminToken = login(ADMIN, ADMIN_PASSWORD).accessToken();
 
-		doctorOne = doctors.save(doctor("doctor-one-" + n));
-		doctorTwo = doctors.save(doctor("doctor-two-" + n));
-		patient = users.save(new User("Pat", "Patient-" + n, "patient-" + n + "@example.org",
-				passwordEncoder.encode(PASSWORD), null));
-		service = services.save(new Service("Consultation " + n, "test service", 30, new BigDecimal("99.00")));
+		doctorOneEmail = createDoctor(adminToken, "doctor-one-" + n + "@example.org");
+		doctorTwoEmail = createDoctor(adminToken, "doctor-two-" + n + "@example.org");
+		patientEmail = createPatientByAdmin(ADMIN, ADMIN_PASSWORD, "patient-" + n + "@example.org", PASSWORD);
+
+		Doctor doctorOne = doctors.findByEmailIgnoreCase(doctorOneEmail).orElseThrow();
+		Doctor doctorTwo = doctors.findByEmailIgnoreCase(doctorTwoEmail).orElseThrow();
+		User patient = users.findByEmailIgnoreCase(patientEmail).orElseThrow();
+		Service service = services
+			.save(new Service("Consultation " + n, "test service", 30, new BigDecimal("99.00")));
 
 		ownAppointment = appointments.save(new Appointment(patient, doctorOne, service, START,
 				START.plusMinutes(30), AppointmentStatus.SCHEDULED, null));
@@ -90,135 +87,158 @@ class AppointmentApprovalSecurityTest extends PostgresTestSupport {
 				START.plusDays(1).plusMinutes(30), AppointmentStatus.SCHEDULED, null));
 	}
 
-	private Doctor doctor(String email) {
-		return new Doctor("Doc", email, email + "@example.org", passwordEncoder.encode(PASSWORD), null,
-				"Cardiology", null);
+	private String createDoctor(String adminToken, String email) {
+		ResponseEntity<String> created = post("/api/doctors", adminToken,
+				Map.of("firstName", "Doc", "lastName", "Tor", "email", email, "password", PASSWORD,
+						"specialization", "Cardiology"));
+		assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+		return email;
 	}
 
 	// --- authentication --------------------------------------------------
 
 	@Test
-	void anonymousRequestToAppointmentsIsRejected() throws Exception {
-		mockMvc.perform(get("/api/appointments/me")).andExpect(status().isUnauthorized());
+	void anonymousRequestToAppointmentsIsRejected() {
+		assertThat(get("/api/appointments/me", null).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
 	}
 
 	@Test
-	void wrongPasswordIsRejected() throws Exception {
-		mockMvc.perform(get("/api/appointments/me").with(httpBasic(doctorOne.getEmail(), "wrong")))
-			.andExpect(status().isUnauthorized());
+	void invalidAndForgedTokensAreRejected() {
+		assertThat(get("/api/appointments/me", "not-a-jwt").getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+
+		String token = login(doctorOneEmail, PASSWORD).accessToken();
+		String forged = token.substring(0, token.length() - 3) + "AAA";
+		assertThat(get("/api/appointments/me", forged).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
 	}
 
 	@Test
-	void catalogueIsPublicButPatientsAreNot() throws Exception {
-		mockMvc.perform(get("/api/services")).andExpect(status().isOk());
-		mockMvc.perform(get("/api/doctors")).andExpect(status().isOk());
+	void wrongPasswordIsRejected() {
+		ResponseEntity<String> response = restTemplate.postForEntity("/api/auth/login",
+				Map.of("email", doctorOneEmail, "password", "wrong-password"), String.class);
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+	}
 
-		mockMvc.perform(get("/api/users")).andExpect(status().isUnauthorized());
-		mockMvc.perform(get("/api/users").with(httpBasic(patient.getEmail(), PASSWORD)))
-			.andExpect(status().isOk());
+	@Test
+	void catalogueIsPublicButPatientsAreNot() {
+		assertThat(get("/api/services", null).getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat(get("/api/doctors", null).getStatusCode()).isEqualTo(HttpStatus.OK);
+
+		assertThat(get("/api/users", null).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+		assertThat(get("/api/users", login(patientEmail, PASSWORD).accessToken()).getStatusCode())
+			.isEqualTo(HttpStatus.OK);
 	}
 
 	// --- /me ------------------------------------------------------------
 
 	@Test
-	void doctorSeesOnlyHisOwnAppointments() throws Exception {
-		mockMvc.perform(get("/api/appointments/me").with(httpBasic(doctorOne.getEmail(), PASSWORD)))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.length()").value(1))
-			.andExpect(jsonPath("$[0].id").value(ownAppointment.getId()))
-			.andExpect(jsonPath("$[0].status").value("SCHEDULED"));
+	void doctorSeesOnlyHisOwnAppointments() {
+		ResponseEntity<String> response = get("/api/appointments/me", doctorOneEmail);
+
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat(response.getBody()).contains(ownAppointment.getId().toString())
+			.doesNotContain(foreignAppointment.getId().toString());
 	}
 
 	@Test
-	void patientSeesHisOwnBookings() throws Exception {
-		mockMvc.perform(get("/api/appointments/me").with(httpBasic(patient.getEmail(), PASSWORD)))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.length()").value(2));
+	void patientSeesHisOwnBookings() {
+		ResponseEntity<String> response = get("/api/appointments/me", patientEmail);
+
+		assertThat(response.getBody()).contains(ownAppointment.getId().toString())
+			.contains(foreignAppointment.getId().toString());
 	}
 
 	@Test
-	void foreignAppointmentIsNotReadable() throws Exception {
-		mockMvc.perform(get("/api/appointments/" + foreignAppointment.getId())
-				.with(httpBasic(doctorOne.getEmail(), PASSWORD)))
-			.andExpect(status().isForbidden());
+	void foreignAppointmentIsNotReadable() {
+		assertThat(get("/api/appointments/" + foreignAppointment.getId(), doctorOneEmail).getStatusCode())
+			.isEqualTo(HttpStatus.FORBIDDEN);
 	}
 
 	// --- /me/pending and /me/approved ------------------------------------
 
 	@Test
-	void pendingContainsScheduledAndApprovedContainsConfirmed() throws Exception {
-		mockMvc.perform(get("/api/appointments/me/pending").with(httpBasic(doctorOne.getEmail(), PASSWORD)))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.length()").value(1))
-			.andExpect(jsonPath("$[0].status").value("SCHEDULED"));
+	void pendingContainsScheduledAndApprovedContainsConfirmed() {
+		assertThat(get("/api/appointments/me/pending", doctorOneEmail).getBody())
+			.contains(ownAppointment.getId().toString());
+		assertThat(get("/api/appointments/me/approved", doctorOneEmail).getBody()).doesNotContain("\"id\"");
 
-		mockMvc.perform(get("/api/appointments/me/approved").with(httpBasic(doctorOne.getEmail(), PASSWORD)))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.length()").value(0));
+		ResponseEntity<String> approved = post("/api/appointments/" + ownAppointment.getId() + "/approve", null,
+				null);
+		assertThat(approved.getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat(approved.getBody()).contains("\"status\":\"CONFIRMED\"");
 
-		MvcResult approved = mockMvc
-			.perform(post("/api/appointments/" + ownAppointment.getId() + "/approve")
-				.with(httpBasic(doctorOne.getEmail(), PASSWORD)))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.status").value("CONFIRMED"))
-			.andReturn();
-
-		assertThat(approved.getResponse().getContentAsString()).contains("CONFIRMED");
-
-		mockMvc.perform(get("/api/appointments/me/pending").with(httpBasic(doctorOne.getEmail(), PASSWORD)))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.length()").value(0));
-		mockMvc.perform(get("/api/appointments/me/approved").with(httpBasic(doctorOne.getEmail(), PASSWORD)))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.length()").value(1));
+		assertThat(get("/api/appointments/me/pending", doctorOneEmail).getBody()).doesNotContain("\"id\"");
+		assertThat(get("/api/appointments/me/approved", doctorOneEmail).getBody())
+			.contains(ownAppointment.getId().toString());
 	}
 
 	@Test
-	void patientsCannotUseTheDoctorLists() throws Exception {
-		mockMvc.perform(get("/api/appointments/me/pending").with(httpBasic(patient.getEmail(), PASSWORD)))
-			.andExpect(status().isForbidden());
-		mockMvc.perform(get("/api/appointments/me/approved").with(httpBasic(patient.getEmail(), PASSWORD)))
-			.andExpect(status().isForbidden());
+	void patientsCannotUseTheDoctorLists() {
+		assertThat(get("/api/appointments/me/pending", patientEmail).getStatusCode())
+			.isEqualTo(HttpStatus.FORBIDDEN);
+		assertThat(get("/api/appointments/me/approved", patientEmail).getStatusCode())
+			.isEqualTo(HttpStatus.FORBIDDEN);
 	}
 
 	// --- approve ---------------------------------------------------------
 
 	@Test
-	void onlyTheOwningDoctorCanApprove() throws Exception {
+	void onlyTheOwningDoctorCanApprove() {
+		Long id = ownAppointment.getId();
+
 		// patient: not a doctor
-		mockMvc.perform(post("/api/appointments/" + ownAppointment.getId() + "/approve")
-				.with(httpBasic(patient.getEmail(), PASSWORD))
-				.contentType(MediaType.APPLICATION_JSON))
-			.andExpect(status().isForbidden());
+		assertThat(post("/api/appointments/" + id + "/approve", null, null).getStatusCode())
+			.isEqualTo(HttpStatus.UNAUTHORIZED);
+		assertThat(postAs(patientEmail, "/api/appointments/" + id + "/approve").getStatusCode())
+			.isEqualTo(HttpStatus.FORBIDDEN);
 
-		// another doctor: the appointment is not his
-		mockMvc.perform(post("/api/appointments/" + ownAppointment.getId() + "/approve")
-				.with(httpBasic(doctorTwo.getEmail(), PASSWORD)))
-			.andExpect(status().isNotFound());
-
-		// anonymous
-		mockMvc.perform(post("/api/appointments/" + ownAppointment.getId() + "/approve"))
-			.andExpect(status().isUnauthorized());
+		// another doctor: the appointment is not his -> 404, ids cannot be probed
+		assertThat(postAs(doctorTwoEmail, "/api/appointments/" + id + "/approve").getStatusCode())
+			.isEqualTo(HttpStatus.NOT_FOUND);
 
 		// the owning doctor succeeds
-		mockMvc.perform(post("/api/appointments/" + ownAppointment.getId() + "/approve")
-				.with(httpBasic(doctorOne.getEmail(), PASSWORD)))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.status").value("CONFIRMED"));
+		assertThat(postAs(doctorOneEmail, "/api/appointments/" + id + "/approve").getStatusCode())
+			.isEqualTo(HttpStatus.OK);
 
-		assertThat(appointments.findById(ownAppointment.getId()).orElseThrow().getStatus())
-			.isEqualTo(AppointmentStatus.CONFIRMED);
+		assertThat(appointments.findById(id).orElseThrow().getStatus()).isEqualTo(AppointmentStatus.CONFIRMED);
 	}
 
 	@Test
-	void approvingTwiceIsAConflict() throws Exception {
-		mockMvc.perform(post("/api/appointments/" + ownAppointment.getId() + "/approve")
-				.with(httpBasic(doctorOne.getEmail(), PASSWORD)))
-			.andExpect(status().isOk());
+	void approvingTwiceIsAConflict() {
+		assertThat(postAs(doctorOneEmail, "/api/appointments/" + ownAppointment.getId() + "/approve")
+			.getStatusCode()).isEqualTo(HttpStatus.OK);
 
-		mockMvc.perform(post("/api/appointments/" + ownAppointment.getId() + "/approve")
-				.with(httpBasic(doctorOne.getEmail(), PASSWORD)))
-			.andExpect(status().isConflict());
+		assertThat(postAs(doctorOneEmail, "/api/appointments/" + ownAppointment.getId() + "/approve")
+			.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+	}
+
+	// --- helpers: one token per account, reused by every test ------------
+
+	private ResponseEntity<String> get(String path, String loginEmail) {
+		return exchange(path, HttpMethod.GET, loginEmail == null ? null : tokenOf(loginEmail), null);
+	}
+
+	private ResponseEntity<String> postAs(String loginEmail, String path) {
+		return exchange(path, HttpMethod.POST, tokenOf(loginEmail), null);
+	}
+
+	private ResponseEntity<String> post(String path, String accessToken, Map<String, Object> body) {
+		return exchange(path, HttpMethod.POST, accessToken, body);
+	}
+
+	private String tokenOf(String loginEmail) {
+		return login(loginEmail, PASSWORD).accessToken();
+	}
+
+	private ResponseEntity<String> exchange(String path, HttpMethod method, String accessToken,
+			Map<String, Object> body) {
+		HttpHeaders headers = new HttpHeaders();
+		if (accessToken != null) {
+			headers.setBearerAuth(accessToken);
+		}
+		if (body != null) {
+			headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+		}
+		return restTemplate.exchange(path, method, new HttpEntity<>(body, headers), String.class);
 	}
 
 }

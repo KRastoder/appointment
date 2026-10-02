@@ -11,6 +11,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.keni.doctorappointment.common.ResourceConflictException;
 import com.keni.doctorappointment.doctors.DoctorRepository;
 import com.keni.doctorappointment.security.AppUserPrincipal;
 import com.keni.doctorappointment.users.dto.ChangePasswordRequest;
@@ -174,7 +175,8 @@ public class UserService {
 	/** Appointments must not be orphaned; deleting a patient with bookings fails. */
 	private void assertNoBookings(User user) {
 		if (!user.getAppointments().isEmpty()) {
-			throw new IllegalStateException("User %d still has appointments and cannot be deleted".formatted(user.getId()));
+			throw new ResourceConflictException(
+					"User %d still has appointments and cannot be deleted".formatted(user.getId()));
 		}
 	}
 

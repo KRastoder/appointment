@@ -12,7 +12,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.keni.doctorappointment.doctors.dto.CreateDoctorRequest;
 import com.keni.doctorappointment.doctors.dto.DoctorResponse;
 import com.keni.doctorappointment.doctors.dto.UpdateDoctorRequest;
-import com.keni.doctorappointment.doctorservices.DoctorService;
 import com.keni.doctorappointment.doctorservices.DoctorServiceId;
 import com.keni.doctorappointment.doctorservices.DoctorServiceRepository;
 import com.keni.doctorappointment.security.AppUserPrincipal;
@@ -113,7 +112,9 @@ public class DoctorService {
 			.orElseThrow(() -> new NoSuchElementException("Service %d not found".formatted(serviceId)));
 
 		if (!doctorServiceRepository.existsById(new DoctorServiceId(doctorId, serviceId))) {
-			doctorServiceRepository.save(new DoctorService(doctor, serviceRepository.getReferenceById(serviceId)));
+			// Fully qualified: this class shares its name with the join entity.
+			doctorServiceRepository.save(new com.keni.doctorappointment.doctorservices.DoctorService(doctor,
+					serviceRepository.getReferenceById(serviceId)));
 		}
 	}
 

@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.keni.doctorappointment.appointments.AppointmentStatusConflictException;
+import com.keni.doctorappointment.common.ResourceConflictException;
 import com.keni.doctorappointment.users.EmailAlreadyInUseException;
 
 /**
@@ -34,7 +35,7 @@ public class ApiExceptionHandler {
 	}
 
 	@ExceptionHandler({ AppointmentStatusConflictException.class, EmailAlreadyInUseException.class,
-			IllegalStateException.class })
+			ResourceConflictException.class })
 	public ProblemDetail handleConflict(RuntimeException ex) {
 		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
 		problem.setTitle("Conflict");

@@ -46,6 +46,11 @@ services:
       DB_USERNAME: ${DB_USERNAME:-doctor}
       DB_PASSWORD: ${DB_PASSWORD:-doctor}
       SERVER_PORT: 8080
+      # HMAC key for the JWT signature (min. 32 bytes).
+      JWT_SECRET: ${JWT_SECRET:-dev-only-insecure-jwt-secret-change-me-0123456789}
+      # First ADMIN account, created on first start only.
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-admin@doctor-appointment.local}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-Admin12345}
     ports:
       - "${APP_PORT:-8080}:8080"
 
