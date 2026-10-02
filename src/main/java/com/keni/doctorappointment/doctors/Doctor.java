@@ -52,6 +52,10 @@ public class Doctor {
 	@Column(name = "email", nullable = false, length = 320)
 	private String email;
 
+	/** BCrypt hash of the login password; never expose it. */
+	@Column(name = "password_hash", nullable = false, length = 255)
+	private String passwordHash;
+
 	@Column(name = "phone_number", length = 32)
 	private String phoneNumber;
 
@@ -81,11 +85,12 @@ public class Doctor {
 	@OneToMany(mappedBy = "doctor", fetch = FetchType.LAZY)
 	private Set<Rating> ratings = new LinkedHashSet<>();
 
-	public Doctor(String firstName, String lastName, String email, String phoneNumber, String specialization,
-			String bio) {
+	public Doctor(String firstName, String lastName, String email, String passwordHash, String phoneNumber,
+			String specialization, String bio) {
 		this.firstName = firstName;
 		this.lastName = lastName;
 		this.email = email;
+		this.passwordHash = passwordHash;
 		this.phoneNumber = phoneNumber;
 		this.specialization = specialization;
 		this.bio = bio;

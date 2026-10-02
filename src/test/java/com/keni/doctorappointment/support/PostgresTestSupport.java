@@ -4,8 +4,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /**
  * Base class for tests that need a real PostgreSQL schema.
@@ -24,10 +24,10 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 public abstract class PostgresTestSupport {
 
 	@Container
-	protected static final PostgreSQLContainer<?> POSTGRES = createPostgresContainer();
+	protected static final PostgreSQLContainer POSTGRES = createPostgresContainer();
 
-	private static PostgreSQLContainer<?> createPostgresContainer() {
-		PostgreSQLContainer<?> container = new PostgreSQLContainer<>("postgres:17-alpine");
+	private static PostgreSQLContainer createPostgresContainer() {
+		PostgreSQLContainer container = new PostgreSQLContainer("postgres:17-alpine");
 		container.withDatabaseName("doctor_appointments");
 		container.withUsername("doctor");
 		container.withPassword("doctor");

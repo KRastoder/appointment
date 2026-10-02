@@ -9,12 +9,14 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.keni.doctorappointment.appointments.AppointmentStatusConflictException;
+
 /**
  * Minimal, generic error mapping for the placeholder endpoints.
  *
  * <p>Only technical failures are translated here (missing resource, bean
- * validation). Domain errors such as "slot already booked" or "rating not
- * allowed" are business logic and should be added as dedicated exceptions
+ * validation, illegal status change). Domain errors such as "slot already
+ * booked" are business logic and should be added as dedicated exceptions
  * once those rules exist.</p>
  */
 @RestControllerAdvice
@@ -24,6 +26,13 @@ public class ApiExceptionHandler {
 	public ProblemDetail handleNotFound(NoSuchElementException ex) {
 		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
 		problem.setTitle("Not found");
+		return problem;
+	}
+
+	@ExceptionHandler(AppointmentStatusConflictException.class)
+	public ProblemDetail handleConflict(AppointmentStatusConflictException ex) {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+		problem.setTitle("Conflict");
 		return problem;
 	}
 

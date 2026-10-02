@@ -44,6 +44,11 @@ class FlywaySchemaTest extends PostgresTestSupport {
 	}
 
 	@Test
+	void doctorsHaveAPasswordHashColumn() {
+		assertThat(columnIsNullable("doctors", "password_hash")).isFalse();
+	}
+
+	@Test
 	void ratingConstraintsExist() {
 		assertThat(uniqueColumns("ratings", "uq_ratings_user_appointment"))
 				.isEqualTo(List.of("user_id", "appointment_id"));
