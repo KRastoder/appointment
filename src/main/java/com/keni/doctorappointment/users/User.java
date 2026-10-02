@@ -6,6 +6,8 @@ import java.util.Set;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -47,7 +49,7 @@ public class User {
 	@Column(name = "last_name", nullable = false, length = 100)
 	private String lastName;
 
-	/** Unique per user; enforced by {@code uq_users_email}. */
+	/** Unique per user, case insensitive; enforced by {@code uq_users_email_lower}. */
 	@Column(name = "email", nullable = false, length = 320)
 	private String email;
 
@@ -56,6 +58,11 @@ public class User {
 
 	@Column(name = "phone_number", length = 32)
 	private String phoneNumber;
+
+	/** PATIENT or ADMIN; enforced by {@code ck_users_role}. */
+	@Enumerated(EnumType.STRING)
+	@Column(name = "role", nullable = false, length = 20)
+	private UserRole role = UserRole.PATIENT;
 
 	@CreationTimestamp
 	@Column(name = "created_at", nullable = false, updatable = false)
@@ -75,11 +82,17 @@ public class User {
 	private Set<Rating> ratings = new LinkedHashSet<>();
 
 	public User(String firstName, String lastName, String email, String passwordHash, String phoneNumber) {
+		this(firstName, lastName, email, passwordHash, phoneNumber, UserRole.PATIENT);
+	}
+
+	public User(String firstName, String lastName, String email, String passwordHash, String phoneNumber,
+			UserRole role) {
 		this.firstName = firstName;
 		this.lastName = lastName;
 		this.email = email;
 		this.passwordHash = passwordHash;
 		this.phoneNumber = phoneNumber;
+		this.role = role != null ? role : UserRole.PATIENT;
 	}
 
 }

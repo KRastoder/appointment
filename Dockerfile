@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1
-
 # =====================================================================
 # Stage 1: build the fat jar with Maven + JDK 21
 # =====================================================================
@@ -7,14 +5,14 @@ FROM maven:3.9-eclipse-temurin-21 AS build
 
 WORKDIR /build
 
-# Dependencies first so that this layer is cached as long as the POM
-# does not change.
+# Dependencies first, so this layer is cached as long as the POM does
+# not change. Works with the classic builder and with BuildKit.
 COPY pom.xml ./
-RUN --mount=type=cache,target=/root/.m2 mvn -B -ntp dependency:go-offline
+RUN mvn -B -ntp dependency:go-offline
 
 # Then the sources.
 COPY src ./src
-RUN --mount=type=cache,target=/root/.m2 mvn -B -ntp clean package -DskipTests
+RUN mvn -B -ntp clean package -DskipTests
 
 # =====================================================================
 # Stage 2: JRE 21 runtime, no build tooling, no credentials

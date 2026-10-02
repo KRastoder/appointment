@@ -3,6 +3,7 @@ package com.keni.doctorappointment.users.dto;
 import java.time.OffsetDateTime;
 
 import com.keni.doctorappointment.users.User;
+import com.keni.doctorappointment.users.UserRole;
 
 /**
  * Outbound representation of a {@link User}.
@@ -15,6 +16,7 @@ public record UserResponse(
 		String lastName,
 		String email,
 		String phoneNumber,
+		UserRole role,
 		OffsetDateTime createdAt,
 		OffsetDateTime updatedAt) {
 
@@ -25,6 +27,7 @@ public record UserResponse(
 				user.getLastName(),
 				user.getEmail(),
 				user.getPhoneNumber(),
+				user.getRole(),
 				user.getCreatedAt(),
 				user.getUpdatedAt());
 	}

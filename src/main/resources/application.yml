@@ -35,9 +35,9 @@ spring:
           batch_size: 30
         order_inserts: true
 
-  jackson:
-    serialization:
-      write-dates-as-timestamps: false
+  # Spring Boot 4 uses Jackson 3, which serialises java.time values as
+  # ISO-8601 strings by default (OffsetDateTime -> "2026-11-02T10:00+01:00").
+  # No explicit date/time feature is needed.
 
 server:
   port: ${SERVER_PORT:8080}

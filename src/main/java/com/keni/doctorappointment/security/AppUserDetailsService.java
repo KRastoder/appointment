@@ -9,17 +9,17 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.keni.doctorappointment.doctors.DoctorRepository;
 import com.keni.doctorappointment.users.UserRepository;
+import com.keni.doctorappointment.users.UserRole;
 
 /**
- * Resolves credentials by e-mail for both account types: doctors first
- * ({@code ROLE_DOCTOR}), then patients ({@code ROLE_USER}).
+ * Resolves credentials by e-mail for all three account types.
  *
- * <p>Passwords are never compared here: the {@code DaoAuthenticationProvider}
- * configured in {@link com.keni.doctorappointment.config.SecurityConfig}
- * verifies the BCrypt hash.</p>
+ * <p>Passwords are never compared here: {@code AuthService} verifies the BCrypt
+ * hash with the configured {@code PasswordEncoder}.</p>
  *
- * <p>TODO: e-mail normalisation (case folding) and "doctor and patient share
- * the same address" handling once the account rules are defined.</p>
+ * <p>Lookup is case insensitive (e-mails are stored lower case and indexed on
+ * {@code LOWER(email)}). A doctor record wins over a patient record for the
+ * same address; registration prevents that situation in the first place.</p>
  */
 @Service
 @RequiredArgsConstructor
@@ -34,11 +34,13 @@ public class AppUserDetailsService implements UserDetailsService {
 	public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
 		String login = email != null ? email.trim() : "";
 
-		return doctorRepository.findByEmail(login)
+		return doctorRepository.findByEmailIgnoreCase(login)
 				.map(doctor -> AppUserPrincipal.ofDoctor(doctor.getId(), doctor.getEmail(),
 						doctor.getPasswordHash()))
-				.or(() -> userRepository.findByEmail(login)
-					.map(user -> AppUserPrincipal.ofPatient(user.getId(), user.getEmail(), user.getPasswordHash())))
+				.or(() -> userRepository.findByEmailIgnoreCase(login)
+					.map(user -> user.getRole() == UserRole.ADMIN
+							? AppUserPrincipal.ofAdmin(user.getId(), user.getEmail(), user.getPasswordHash())
+							: AppUserPrincipal.ofPatient(user.getId(), user.getEmail(), user.getPasswordHash())))
 				.orElseThrow(() -> new UsernameNotFoundException("No account for e-mail " + login));
 	}
 

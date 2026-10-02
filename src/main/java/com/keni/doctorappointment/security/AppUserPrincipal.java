@@ -10,13 +10,18 @@ import org.springframework.security.core.userdetails.UserDetails;
 /**
  * The authenticated principal of the application.
  *
- * <p>Two kinds of accounts exist and are told apart by {@link AccountType}:
- * patients ({@code ROLE_USER}) and doctors ({@code ROLE_DOCTOR}). The
- * authorities are what the authorisation rules ({@code @PreAuthorize},
- * {@code authorizeHttpRequests}) are written against.</p>
+ * <p>Three kinds of accounts exist and are told apart by {@link AccountType}:
+ * patients ({@code ROLE_USER}), doctors ({@code ROLE_DOCTOR}) and staff
+ * ({@code ROLE_ADMIN}). Authorities are what the authorisation rules
+ * ({@code @PreAuthorize}, {@code authorizeHttpRequests}) are written
+ * against.</p>
  *
- * <p>The id of the account is carried in the principal so authorisation
- * checks can be done without a second database lookup.</p>
+ * <p>The account id is carried in the principal (and in the JWT claims) so
+ * ownership checks need no second database lookup.</p>
+ *
+ * <p>A doctor always wins over a patient for the same e-mail address, which is
+ * why e-mail uniqueness is enforced across both tables on write
+ * (see {@code UserService#assertEmailAvailable}).</p>
  */
 public record AppUserPrincipal(
 		Long id,
@@ -27,7 +32,8 @@ public record AppUserPrincipal(
 
 	public enum AccountType {
 		PATIENT,
-		DOCTOR
+		DOCTOR,
+		ADMIN
 	}
 
 	public static AppUserPrincipal ofDoctor(Long id, String email, String passwordHash) {
@@ -40,8 +46,26 @@ public record AppUserPrincipal(
 				List.of(new SimpleGrantedAuthority("ROLE_USER")));
 	}
 
+	/** Staff account: manages the service catalogue and doctor accounts. */
+	public static AppUserPrincipal ofAdmin(Long id, String email, String passwordHash) {
+		return new AppUserPrincipal(id, email, passwordHash, AccountType.ADMIN,
+				List.of(new SimpleGrantedAuthority("ROLE_ADMIN"), new SimpleGrantedAuthority("ROLE_USER")));
+	}
+
 	public boolean isDoctor() {
 		return this.accountType == AccountType.DOCTOR;
+	}
+
+	public boolean isAdmin() {
+		return this.accountType == AccountType.ADMIN;
+	}
+
+	/** Role names without the {@code ROLE_} prefix, as stored in the JWT. */
+	public List<String> roles() {
+		return this.authorities.stream()
+			.map(GrantedAuthority::getAuthority)
+			.map(authority -> authority.startsWith("ROLE_") ? authority.substring("ROLE_".length()) : authority)
+			.toList();
 	}
 
 	// --- UserDetails ---------------------------------------------------

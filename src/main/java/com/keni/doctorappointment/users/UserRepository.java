@@ -4,17 +4,11 @@ import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-/**
- * Data access for {@link User}.
- *
- * <p>Only plain CRUD + lookup helpers are provided; query methods that
- * encode business rules (e.g. duplicate-email handling) belong to the
- * service layer.</p>
- */
+/** Data access for {@link User}. */
 public interface UserRepository extends JpaRepository<User, Long> {
 
-	Optional<User> findByEmail(String email);
+	Optional<User> findByEmailIgnoreCase(String email);
 
-	boolean existsByEmail(String email);
+	boolean existsByEmailIgnoreCase(String email);
 
 }

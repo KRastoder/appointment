@@ -39,7 +39,15 @@
 			<scope>runtime</scope>
 		</dependency>
 
-		<!-- Schema management: Flyway is the single source of truth -->
+		<!-- Schema management: Flyway is the single source of truth.
+		     NOTE: in Spring Boot 4 the Flyway auto-configuration lives in
+		     spring-boot-flyway (bundled in spring-boot-starter-flyway); the
+		     flyway-core artifacts alone would install the library but never
+		     run a migration. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-flyway</artifactId>
+		</dependency>
 		<dependency>
 			<groupId>org.flywaydb</groupId>
 			<artifactId>flyway-core</artifactId>
